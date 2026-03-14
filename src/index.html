@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <script src="https://cdn.jsdelivr.net/npm/3d-force-graph"></script>
+    <script src="https://cdn.jsdelivr.net/npm/force-graph"></script>
     <title>Graph View</title>
     <style>
       body {
@@ -16,40 +17,81 @@
     </style>
   </head>
   <body>
-    <div id="3d-graph"></div>
+    <div id="graph"></div>
 
-    <script>
+    <script type="module">
+      import SpriteText from 'https://esm.sh/three-spritetext';
+
+      const IS_3D = false;
+
       let Graph;
 
       function renderGraph(gData) {
-        const elem = document.getElementById('3d-graph');
+        const elem = document.getElementById('graph');
         
         if (Graph) {
           Graph._destructor();
         }
 
-        Graph = new ForceGraph3D(elem)
+        const maxLinks = Math.max(...gData.nodes.map(n => n.linkCount || 0), 1);
+
+        Graph = (IS_3D ? new ForceGraph3D(elem) : new ForceGraph(elem))
           .width(window.innerWidth)
           .height(window.innerHeight)
-          .backgroundColor('#0d1117')
+          .backgroundColor('#000000')
+          //.backgroundColor('#0d1117')
+          .nodeVal(node => {
+            const count = node.linkCount || 1;
+            return 2 + (count / maxLinks) * 6;
+          })
           .nodeColor(node => {
-            if (!node.hasFile) return '#6e7681';
+            //if (!node.hasFile) return '#6e7681';
+            if (!node.hasFile) return '#B7C5D799';
             if (node.isExternal) return '#f85149';
             const colors = ['#58a6ff', '#f78166', '#7ee787', '#d2a8ff', '#ffa657'];
             return colors[node.id % colors.length];
           })
-          .nodeLabel(node => `<b>${node.name}</b><br><span style="color:#888">${node.notebook}${node.isExternal ? ' (external)' : ''}${!node.hasFile ? ' (missing)' : ''}</span>`)
+          .nodeLabel(node => `<b>${node.title}</b><br><span style="color:#888">${node.notebook}${node.isExternal ? ' (external)' : ''}${!node.hasFile ? ' (missing)' : ''}</span><br><span style="color:#666">${node.linkCount} links</span>`)
           .linkColor(link => {
-            const source = gData.nodes.find(n => n.id === link.source);
-            const target = gData.nodes.find(n => n.id === link.target);
-            if (source?.isExternal || target?.isExternal || !source?.hasFile || !target?.hasFile) return '#30363d';
-            return '#80868d';
+	      const start = link.source;
+              const end = link.target;
+              if (typeof start !== 'object' || typeof end !== 'object') return;
+
+	      if(start.hasFile && end.hasFile) return '#80868d';
+	      return '#30363d';
           })
           .graphData(gData)
           .onNodeClick(node => {
             Graph.centerAt(node.x, node.y, 1000);
             Graph.zoom(8, 2000);
+          })
+          .onBackgroundClick(() => {
+            Graph.zoomToFit(1000, 50);
           });
+
+	if (IS_3D) {
+	    Graph.nodeThreeObject(node => {
+              if (!node.hasFile) return null;
+              const sprite = new SpriteText(node.title);
+              sprite.color = node.isExternal ? '#f85149' : '#c9d1d9';
+              sprite.textHeight = 4;
+              sprite.center.y = -0.6;
+              return sprite;
+            })
+          .nodeThreeObjectExtend(true)
+	  .showNavInfo(false)
+	} else {
+	   Graph.nodeCanvasObjectMode(()=>'after')
+	   .nodeCanvasObject((node, ctx) => {
+	      if (!node.hasFile) return;
+	      const label = node.title;
+	      const fontSize = 12;
+	      ctx.font = `${fontSize}px Sans-Serif`;
+	      const textWidth = ctx.measureText(label).width;
+	      ctx.fillStyle = node.isExternal ? '#f85149' : '#c9d1d9';
+	      ctx.fillText(label, node.x - textWidth / 2, node.y + 25);
+	    })
+	}
 
         window.addEventListener('resize', () => {
           Graph
@@ -58,17 +100,34 @@
         });
       }
 
-      window.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'graph-data') {
-          renderGraph(event.data.data);
-        }
-      });
-
       if (window.electron) {
         electron.onGraphData((data) => {
           renderGraph(data);
         });
       }
+
+
+      let hidden = false;
+      document.addEventListener ('keypress', (event) => {
+         // Detect if key "." is pressed
+	 if (event.key === ".") {
+	    hidden = !hidden;
+	    Graph.nodeColor(node => {
+	      if (!node.hasFile) return hidden ? '#b7c5d710' : '#B7C5D799';
+	      if (node.isExternal) return hidden ? '#f85149' : '#f85149';
+	      const colors = ['#58a6ff', '#f78166', '#7ee787', '#d2a8ff', '#ffa657'];
+	      return colors[node.id % colors.length];
+	      })
+	    .linkColor(link => {
+	      const start = link.source;
+              const end = link.target;
+              if (typeof start !== 'object' || typeof end !== 'object') return;
+
+	      if(start.hasFile && end.hasFile) return '#80868d';
+	      return hidden ? '#30363d10' : '#30363d';
+	      })
+	 }
+      });
     </script>
   </body>
 </html>

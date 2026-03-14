@@ -45,20 +45,41 @@ function getNotesRecursively(dir, basePath = '') {
   return notes
 }
 
+function extractTitle(content, filename) {
+  const lines = content.split('\n')
+  
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('# ')) {
+      return trimmed.substring(2).trim()
+    }
+  }
+  
+  if (content.includes('---')) {
+    const yamlMatch = content.match(/title:\s*(.+)/)
+    if (yamlMatch) {
+      return yamlMatch[1].trim().replace(/^["']|["']$/g, '')
+    }
+  }
+  
+  return filename.replace(/[^/]+\//, '').replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+}
+
 function getGraphData(notebook = 'home') {
   const nodes = []
   const links = []
   const nodeMap = new Map()
   const existingNotes = new Set()
+  const linkCounts = new Map()
   let nodeId = 0
   const nbPath = getNotebookPath(notebook)
 
-  function getOrCreateNode(name, notebookName = notebook, isExternal = false, hasFile = true) {
+  function getOrCreateNode(name, notebookName = notebook, isExternal = false, hasFile = true, title = null) {
     const key = `${notebookName}:${name}`
     if (!nodeMap.has(key)) {
       const id = nodeId++
-      nodeMap.set(key, { id, name, notebook: notebookName, isExternal, hasFile })
-      nodes.push({ id, name, notebook: notebookName, isExternal, hasFile })
+      nodeMap.set(key, { id, name, notebook: notebookName, isExternal, hasFile, title: title || name })
+      nodes.push({ id, name, notebook: notebookName, isExternal, hasFile, title: title || name })
     }
     return nodeMap.get(key)
   }
@@ -74,8 +95,9 @@ function getGraphData(notebook = 'home') {
     for (const note of notes) {
       try {
         const content = fs.readFileSync(note.fullPath, 'utf-8')
+        const title = extractTitle(content, note.filename)
         noteContents[note.relativePath] = content
-        getOrCreateNode(note.relativePath, notebook, false, true)
+        getOrCreateNode(note.relativePath, notebook, false, true, title)
       } catch (e) {
         console.error(`Error reading note ${note.fullPath}:`, e.message)
       }
@@ -86,22 +108,26 @@ function getGraphData(notebook = 'home') {
       const sourceNode = getOrCreateNode(filepath, notebook, false, true)
       let match
       while ((match = linkRegex.exec(content)) !== null) {
-        const linkTarget = match[1].trim()
+        let linkTarget = match[1].trim()
         let targetNotebook = notebook
         let targetName = linkTarget
 
         if (linkTarget.includes(':')) {
           const colonIndex = linkTarget.indexOf(':')
-          targetNotebook = linkTarget.substring(0, colonIndex)
+          targetNotebook = linkTarget.substring(0, colonIndex).trim()
           targetName = linkTarget.substring(colonIndex + 1)
         }
 
-        targetName = targetName.replace(/\.md$/, '').replace(/\.markdown$/, '')
+        targetName = targetName.trim().replace(/\.md$/, '').replace(/\.markdown$/, '')
         
         const isExternal = targetNotebook !== notebook
         const targetNode = getOrCreateNode(targetName, targetNotebook, isExternal, existingNotes.has(targetName))
         links.push({ source: sourceNode.id, target: targetNode.id })
       }
+    }
+
+    for (const node of nodes) {
+      node.linkCount = links.filter(l => l.source === node.id || l.target === node.id).length
     }
   } catch (e) {
     console.error('Error getting graph data:', e.message)
@@ -113,6 +139,7 @@ function getGraphData(notebook = 'home') {
 const createWindow = () => {
   const win = new BrowserWindow({
     frame: false,
+    backgroundColor: '#000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
