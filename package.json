@@ -1,0 +1,16 @@
+{
+  "name": "nb-graph-view",
+  "version": "1.0.0",
+  "description": "3D graph visualization of nb notebook notes with wiki-links",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:notebook": "electron . --notebook=lab",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^41.0.2"
+  }
+}

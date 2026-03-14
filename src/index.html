@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/3d-force-graph"></script>
+    <title>Graph View</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #3d-graph {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="3d-graph"></div>
+
+    <script>
+      let Graph;
+
+      function renderGraph(gData) {
+        const elem = document.getElementById('3d-graph');
+        
+        if (Graph) {
+          Graph._destructor();
+        }
+
+        Graph = new ForceGraph3D(elem)
+          .width(window.innerWidth)
+          .height(window.innerHeight)
+          .backgroundColor('#0d1117')
+          .nodeColor(node => {
+            if (!node.hasFile) return '#6e7681';
+            if (node.isExternal) return '#f85149';
+            const colors = ['#58a6ff', '#f78166', '#7ee787', '#d2a8ff', '#ffa657'];
+            return colors[node.id % colors.length];
+          })
+          .nodeLabel(node => `<b>${node.name}</b><br><span style="color:#888">${node.notebook}${node.isExternal ? ' (external)' : ''}${!node.hasFile ? ' (missing)' : ''}</span>`)
+          .linkColor(link => {
+            const source = gData.nodes.find(n => n.id === link.source);
+            const target = gData.nodes.find(n => n.id === link.target);
+            if (source?.isExternal || target?.isExternal || !source?.hasFile || !target?.hasFile) return '#30363d';
+            return '#80868d';
+          })
+          .graphData(gData)
+          .onNodeClick(node => {
+            Graph.centerAt(node.x, node.y, 1000);
+            Graph.zoom(8, 2000);
+          });
+
+        window.addEventListener('resize', () => {
+          Graph
+            .width(window.innerWidth)
+            .height(window.innerHeight);
+        });
+      }
+
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'graph-data') {
+          renderGraph(event.data.data);
+        }
+      });
+
+      if (window.electron) {
+        electron.onGraphData((data) => {
+          renderGraph(data);
+        });
+      }
+    </script>
+  </body>
+</html>
