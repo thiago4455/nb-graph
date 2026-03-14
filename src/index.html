@@ -65,7 +65,17 @@
             title = doiTitleCache.get(doi) || node.name;
           }
         }
-        return `<b id="tooltip-title-${node.name}">${title}</b><br><span style="color:#888">${node.notebook}${node.isExternal ? ' (external)' : ''}${!node.hasFile ? ' (missing)' : ''}</span><br><span style="color:#666">${node.linkCount} links</span>`;
+        
+        let metadataHtml = '';
+        if (node.metadata) {
+          for (const [key, value] of Object.entries(node.metadata)) {
+            if (key !== 'title') {
+              metadataHtml += `<br><span style="color:#888">${key}: ${value}</span>`;
+            }
+          }
+        }
+        
+        return `<b id="tooltip-title-${node.name}">${title}</b><br><span style="color:#888">${node.notebook}${node.isExternal ? ' (external)' : ''}${!node.hasFile ? ' (missing)' : ''}</span>${metadataHtml}<br><span style="color:#666">${node.linkCount} links</span>`;
       }
 
       async function renderGraph(gData) {
@@ -166,7 +176,6 @@
 
       let hidden = false;
       document.addEventListener ('keypress', (event) => {
-         // Detect if key "." is pressed
 	 if (event.key === ".") {
 	    hidden = !hidden;
 	    Graph.nodeColor(node => {

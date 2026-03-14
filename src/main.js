@@ -65,6 +65,32 @@ function extractTitle(content, filename) {
   return filename.replace(/[^/]+\//, '').replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
 }
 
+function extractMetadata(content) {
+  const metadata = {}
+  if (!content.includes('---')) return metadata
+  
+  const yamlMatch = content.match(/---\n([\s\S]*?)\n---/)
+  if (!yamlMatch) return metadata
+  
+  const yamlContent = yamlMatch[1]
+  const lines = yamlContent.split('\n')
+  
+  for (const line of lines) {
+    const colonIndex = line.indexOf(':')
+    if (colonIndex === -1) continue
+    
+    const key = line.substring(0, colonIndex).trim()
+    let value = line.substring(colonIndex + 1).trim()
+    value = value.replace(/^["']|["']$/g, '')
+    
+    if (key && value) {
+      metadata[key] = value
+    }
+  }
+  
+  return metadata
+}
+
 function getGraphData(notebook = 'home') {
   const nodes = []
   const links = []
@@ -74,12 +100,12 @@ function getGraphData(notebook = 'home') {
   let nodeId = 0
   const nbPath = getNotebookPath(notebook)
 
-  function getOrCreateNode(name, notebookName = notebook, isExternal = false, hasFile = true, title = null) {
+  function getOrCreateNode(name, notebookName = notebook, isExternal = false, hasFile = true, title = null, metadata = null) {
     const key = `${notebookName}:${name}`
     if (!nodeMap.has(key)) {
       const id = nodeId++
-      nodeMap.set(key, { id, name, notebook: notebookName, isExternal, hasFile, title: title || name })
-      nodes.push({ id, name, notebook: notebookName, isExternal, hasFile, title: title || name })
+      nodeMap.set(key, { id, name, notebook: notebookName, isExternal, hasFile, title: title || name, metadata })
+      nodes.push({ id, name, notebook: notebookName, isExternal, hasFile, title: title || name, metadata })
     }
     return nodeMap.get(key)
   }
@@ -92,12 +118,15 @@ function getGraphData(notebook = 'home') {
     }
     
     const noteContents = {}
+    const noteMetadata = {}
     for (const note of notes) {
       try {
         const content = fs.readFileSync(note.fullPath, 'utf-8')
         const title = extractTitle(content, note.filename)
+        const metadata = extractMetadata(content)
         noteContents[note.relativePath] = content
-        getOrCreateNode(note.relativePath, notebook, false, true, title)
+        noteMetadata[note.relativePath] = metadata
+        getOrCreateNode(note.relativePath, notebook, false, true, title, metadata)
       } catch (e) {
         console.error(`Error reading note ${note.fullPath}:`, e.message)
       }
@@ -175,9 +204,7 @@ app.whenReady().then(() => {
   createWindow()
 
   ipcMain.handle('open-node', (event, nodeName) => {
-    console.log("open-node")
     const doiMatch = nodeName.match(/^articles\/([^/]+)\.bookmark(\.md)?$/)
-    console.log(nodeName, doiMatch)
     if (doiMatch) {
       const doi = doiMatch[1].replace(/_/g, '/')
       exec(`kitty --hold bash -c "source ~/.bashrc && nb article ${doi}"`)
