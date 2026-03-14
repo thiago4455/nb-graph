@@ -1,5 +1,5 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
-const { execSync } = require('child_process')
+const { app, BrowserWindow, ipcMain, Menu } = require('electron')
+const { execSync, exec } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 
@@ -37,7 +37,7 @@ function getNotesRecursively(dir, basePath = '') {
       notes.push({ 
         filename: item.name, 
         fullPath,
-        relativePath: relativePath.replace(/\.(md|markdown)$/, '')
+        relativePath: relativePath
       })
     }
   }
@@ -118,7 +118,7 @@ function getGraphData(notebook = 'home') {
           targetName = linkTarget.substring(colonIndex + 1)
         }
 
-        targetName = targetName.trim().replace(/\.md$/, '').replace(/\.markdown$/, '')
+        targetName = targetName.trim()
         
         const isExternal = targetNotebook !== notebook
         const targetNode = getOrCreateNode(targetName, targetNotebook, isExternal, existingNotes.has(targetName))
@@ -159,4 +159,17 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   createWindow()
+
+  ipcMain.handle('open-node', (event, nodeName) => {
+    console.log("open-node")
+    const doiMatch = nodeName.match(/^articles\/([^/]+)\.bookmark(\.md)?$/)
+    console.log(nodeName, doiMatch)
+    if (doiMatch) {
+      const doi = doiMatch[1].replace(/_/g, '/')
+      console.log(doi)
+      exec(`kitty bash -c "source ~/.bashrc && nb article ${doi}"`)
+    } else {
+      exec(`kitty bash -c "source ~/.bashrc && nb edit ${nodeName}.md"`)
+    }
+  })
 })

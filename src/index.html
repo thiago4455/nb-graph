@@ -55,7 +55,6 @@
           .linkColor(link => {
 	      const start = link.source;
               const end = link.target;
-	      console.log(start, end);
               if (typeof start !== 'object' || typeof end !== 'object') return;
 
 	      if(start.hasFile && end.hasFile) return '#80868d';
@@ -68,6 +67,9 @@
           })
           .onBackgroundClick(() => {
             Graph.zoomToFit(1000, 50);
+          })
+          .onNodeRightClick((node, event) => {
+            electron.openNode(node.name);
           });
 
 	if (IS_3D) {
