@@ -55,6 +55,7 @@
           .linkColor(link => {
 	      const start = link.source;
               const end = link.target;
+	      console.log(start, end);
               if (typeof start !== 'object' || typeof end !== 'object') return;
 
 	      if(start.hasFile && end.hasFile) return '#80868d';
@@ -126,6 +127,11 @@
 	      if(start.hasFile && end.hasFile) return '#80868d';
 	      return hidden ? '#30363d10' : '#30363d';
 	      })
+	   if (IS_3D) {
+	      Graph.nodeVisibility(node => {
+	      	return !(!node.hasFile && hidden);
+	      });
+	   }
 	 }
       });
     </script>
