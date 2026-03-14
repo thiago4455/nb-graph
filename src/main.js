@@ -152,8 +152,22 @@ const createWindow = () => {
   win.webContents.on('did-finish-load', () => {
     const notebookArg = process.argv.find(arg => arg.startsWith('--notebook='))?.split('=')[1]
     const notebook = notebookArg || getDefaultNotebook()
-    const graphData = getGraphData(notebook)
-    win.webContents.send('graph-data', graphData)
+    const nbPath = getNotebookPath(notebook)
+
+    const sendGraphData = () => {
+      const graphData = getGraphData(notebook)
+      win.webContents.send('graph-data', graphData)
+    }
+
+    sendGraphData()
+
+    let debounceTimer
+    fs.watch(nbPath, { recursive: true }, (eventType, filename) => {
+      if (filename && (filename.endsWith('.md') || filename.endsWith('.markdown') || filename.includes('.bookmark'))) {
+        clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(sendGraphData, 500)
+      }
+    })
   })
 }
 
@@ -166,10 +180,9 @@ app.whenReady().then(() => {
     console.log(nodeName, doiMatch)
     if (doiMatch) {
       const doi = doiMatch[1].replace(/_/g, '/')
-      console.log(doi)
-      exec(`kitty bash -c "source ~/.bashrc && nb article ${doi}"`)
+      exec(`kitty --hold bash -c "source ~/.bashrc && nb article ${doi}"`)
     } else {
-      exec(`kitty bash -c "source ~/.bashrc && nb edit ${nodeName}.md"`)
+      exec(`kitty --hold bash -c "source ~/.bashrc && nb edit ${nodeName}.md"`)
     }
   })
 })
