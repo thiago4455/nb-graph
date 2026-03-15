@@ -2,8 +2,8 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <script src="https://cdn.jsdelivr.net/npm/3d-force-graph"></script>
-    <script src="https://cdn.jsdelivr.net/npm/force-graph"></script>
+    <script src="3d-force-graph.js"></script>
+    <script src="force-graph.js"></script>
     <title>Graph View</title>
     <style>
       body {
@@ -22,7 +22,7 @@
     <script type="module">
       import SpriteText from 'https://esm.sh/three-spritetext';
 
-      const IS_3D = false;
+      let IS_3D = false;
 
       let Graph;
       const doiTitleCache = new Map();
@@ -78,6 +78,35 @@
         return `<b id="tooltip-title-${node.name}">${title}</b><br><span style="color:#888">${node.notebook}${node.isExternal ? ' (external)' : ''}${!node.hasFile ? ' (missing)' : ''}</span>${metadataHtml}<br><span style="color:#666">${node.linkCount} links</span>`;
       }
 
+      function setTitleObjects(hideTitles = false) {
+	if (!Graph) return;
+	if (IS_3D) {
+	    Graph.nodeThreeObject(node => {
+	      if (hideTitles) return null;
+              if (!node.hasFile) return null;
+              const sprite = new SpriteText(node.title);
+              sprite.color = node.isExternal ? '#f85149' : '#c9d1d9';
+              sprite.textHeight = 4;
+              sprite.center.y = -0.6;
+              return sprite;
+            })
+          .nodeThreeObjectExtend(true)
+	  .showNavInfo(false)
+	} else {
+	   Graph.nodeCanvasObjectMode(()=>'after')
+	   .nodeCanvasObject((node, ctx) => {
+	      if (hideTitles) return;
+	      if (!node.hasFile) return;
+	      const label = node.title;
+	      const fontSize = 12;
+	      ctx.font = `${fontSize}px Sans-Serif`;
+	      const textWidth = ctx.measureText(label).width;
+	      ctx.fillStyle = node.isExternal ? '#f85149' : '#c9d1d9';
+	      ctx.fillText(label, node.x - textWidth / 2, node.y + 25);
+	    })
+	}
+      }
+
       async function renderGraph(gData) {
         const elem = document.getElementById('graph');
         
@@ -124,6 +153,7 @@
 	      if(start.hasFile && end.hasFile) return '#80868d';
 	      return '#30363d';
           })
+	  .linkDirectionalArrowLength(6)
           .graphData(gData)
           .onNodeClick(node => {
             Graph.centerAt(node.x, node.y, 1000);
@@ -136,30 +166,9 @@
             electron.openNode(node.name);
           });
 
-	if (IS_3D) {
-	    Graph.nodeThreeObject(node => {
-              if (!node.hasFile) return null;
-              const sprite = new SpriteText(node.title);
-              sprite.color = node.isExternal ? '#f85149' : '#c9d1d9';
-              sprite.textHeight = 4;
-              sprite.center.y = -0.6;
-              return sprite;
-            })
-          .nodeThreeObjectExtend(true)
-	  .showNavInfo(false)
-	} else {
-	   Graph.nodeCanvasObjectMode(()=>'after')
-	   .nodeCanvasObject((node, ctx) => {
-	      if (!node.hasFile) return;
-	      const label = node.title;
-	      const fontSize = 12;
-	      ctx.font = `${fontSize}px Sans-Serif`;
-	      const textWidth = ctx.measureText(label).width;
-	      ctx.fillStyle = node.isExternal ? '#f85149' : '#c9d1d9';
-	      ctx.fillText(label, node.x - textWidth / 2, node.y + 25);
-	    })
-	}
+	setTitleObjects();
 
+	
         window.addEventListener('resize', () => {
           Graph
             .width(window.innerWidth)
@@ -168,7 +177,8 @@
       }
 
       if (window.electron) {
-        electron.onGraphData((data) => {
+        electron.onGraphData((data, is3D) => {
+          IS_3D = is3D;
           renderGraph(data);
         });
       }
@@ -199,6 +209,13 @@
 	   }
 	 }
       });
+      let hiddenTitles = false;
+      document.addEventListener ('keypress', (event) => {
+      if (event.key === ",") {
+      	    hiddenTitles = !hiddenTitles;
+	    setTitleObjects(hiddenTitles);
+      }});
+
     </script>
   </body>
 </html>

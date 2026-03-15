@@ -180,12 +180,13 @@ const createWindow = () => {
 
   win.webContents.on('did-finish-load', () => {
     const notebookArg = process.argv.find(arg => arg.startsWith('--notebook='))?.split('=')[1]
+    const is3D = process.argv.includes('--3d')
     const notebook = notebookArg || getDefaultNotebook()
     const nbPath = getNotebookPath(notebook)
 
     const sendGraphData = () => {
       const graphData = getGraphData(notebook)
-      win.webContents.send('graph-data', graphData)
+      win.webContents.send('graph-data', graphData, is3D)
     }
 
     sendGraphData()
