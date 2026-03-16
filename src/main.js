@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron')
 const { execSync, exec } = require('child_process')
 const fs = require('fs')
 const path = require('path')
@@ -210,7 +210,11 @@ app.whenReady().then(() => {
       const doi = doiMatch[1].replace(/_/g, '/')
       exec(`kitty --hold bash -c "source ~/.bashrc && nb article ${doi}"`)
     } else {
-      exec(`kitty --hold bash -c "source ~/.bashrc && nb edit ${nodeName}.md"`)
+      exec(`kitty --hold bash -c "source ~/.bashrc && nb edit ${nodeName}"`)
     }
+  })
+
+  ipcMain.handle('open-external', (event, url) => {
+    shell.openExternal(url)
   })
 })

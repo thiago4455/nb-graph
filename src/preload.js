@@ -6,5 +6,8 @@ contextBridge.exposeInMainWorld('electron', {
   },
   openNode: (nodeName) => {
     ipcRenderer.invoke('open-node', nodeName)
+  },
+  openExternal: (url) => {
+    ipcRenderer.invoke('open-external', url)
   }
 })

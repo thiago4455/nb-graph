@@ -158,6 +158,12 @@
           .onNodeClick(node => {
             Graph.centerAt(node.x, node.y, 1000);
             Graph.zoom(8, 2000);
+            if (isDoi(node.name)) {
+              const doi = getDoiFromName(node.name);
+              if (doi) {
+                electron.openExternal(`https://doi.org/${doi}`);
+              }
+            }
           })
           .onBackgroundClick(() => {
             Graph.zoomToFit(1000, 50);
